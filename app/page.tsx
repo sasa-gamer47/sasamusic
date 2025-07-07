@@ -50,7 +50,7 @@ const Home = () => {
   };
 
   return (
-    <div className="absolute right-0 top-0 bottom-0 w-10/12 h-full flex">
+    <div className="absolute right-0 top-20 z-20 sm:top-0 bottom-0 w-full sm:w-10/12 h-full flex">
 
       <div className="relative right-0 top-0 bottom-0 w-10/12 p-6 bg-slate-900">
         <form onSubmit={handleSearch} className=" flex justify-center border-b-2 border-slate-800">

@@ -121,8 +121,8 @@ const AudioPlayer = () => {
   return (
     <div className="z-40 w-full h-20 bg-slate-800 flex-shrink-0 flex items-center justify-between border-t border-slate-700 px-6">
       <audio ref={audioRef} />
-      <Link href={`/song/${activeSong?._id}`} className="flex items-center gap-4 w-1/3">
-        <div className="relative w-14 h-14 rounded-md overflow-hidden">
+      <Link href={`/song/${activeSong?._id}`} className="flex items-center gap-4 w-1/3 min-w-[150px]">
+        <div className="relative w-14 h-14 rounded-md overflow-hidden hidden sm:block">
           <Image
             src={activeSong?.cover || songCover}
             alt="Current Song Cover"
@@ -132,8 +132,10 @@ const AudioPlayer = () => {
           />
         </div>
         <div>
-          <h3 className="text-white text-md font-semibold">{activeSong?.title || 'No song selected'}</h3>
-          <p className="text-gray-400 text-sm">{activeSong?.artist || '-'}</p>
+          <h3 className="text-white text-md sm:text-lg font-semibold">
+            {activeSong?.title || 'No song selected'}
+          </h3>
+          <p className="text-gray-400 text-xs sm:text-sm">{activeSong?.artist || '-'}</p>
         </div>
       </Link>
 
@@ -146,7 +148,7 @@ const AudioPlayer = () => {
           <FaStepForward onClick={playNext} className="cursor-pointer hover:text-gray-300 transition-colors" />
         </div>
         <div className="flex items-center gap-2 w-full">
-          <span className="text-gray-400 text-xs w-10 text-right">{formatTime(currentTime)}</span>
+          <span className="text-gray-400 text-xs sm:w-10 text-right">{formatTime(currentTime)}</span>
           <input
             type="range"
             value={currentTime || 0}
@@ -160,8 +162,8 @@ const AudioPlayer = () => {
               background: `linear-gradient(to right, #1DB954, #1ED760 ${progress}%, #4B5563 ${progress}%)`
             }}
           />
-          <span className="text-gray-400 text-xs w-10">{formatTime(duration)}</span>
-          <FaListUl onClick={toggleQueueModal} className="text-gray-400 text-lg cursor-pointer hover:text-gray-300 transition-colors" />
+          <span className="text-gray-400 text-xs sm:w-10">{formatTime(duration)}</span>
+          <FaListUl onClick={toggleQueueModal} className="text-gray-400 text-xl sm:text-lg cursor-pointer hover:text-gray-300 transition-colors" />
         </div>
       </div>
 
