@@ -1,103 +1,86 @@
+"use client"
+
 import Image from "next/image";
+import Song from "@/components/Song";
+import Album from "@/components/Album";
+import { getLatestSongs } from "@/lib/actions/song.actions";
+import { getLatestAlbums } from "@/lib/actions/album.actions";
+import { CreateSongParams, CreateAlbumParams } from "@/types";
+import { usePlayer } from "@/context/PlayerContext";
+import { useRouter } from 'next/navigation';
+import { useEffect, useState } from "react";
 
-export default function Home() {
+const Home = () => {
+  const { addSongToQueue } = usePlayer();
+  const router = useRouter();
+
+  const [latestSongs, setLatestSongs] = useState<CreateSongParams[]>([])
+  const [latestAlbums, setLatestAlbums] = useState<CreateAlbumParams[]>([])
+
+  useEffect(() => {
+    const fetchLatest = async () => {
+      try {
+        const [songs, albums] = await Promise.all([
+          getLatestSongs(),
+          getLatestAlbums(),
+        ]); 
+        if (songs && songs.length > 0) {
+          setLatestSongs(songs.slice(0, 4)); // Limit to 4 latest songs
+          // Automatically add fetched songs to the queue
+          songs.forEach((song: CreateSongParams) => addSongToQueue(song));
+        }
+        if (albums && albums.length > 0) {
+          setLatestAlbums(albums.slice(0, 4)); // Limit to 4 latest albums
+        }
+      } catch (error) {
+        console.error('Error fetching latest data: ', error);
+      }
+    };
+    fetchLatest();
+  }, [addSongToQueue]);
+
+  const handleSearch = (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const formData = new FormData(event.currentTarget);
+    const searchQuery = formData.get('search')?.toString();
+
+    if (searchQuery) {
+      router.push(`/search?query=${searchQuery}`);
+    }
+  };
+
   return (
-    <div className="grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20 font-[family-name:var(--font-geist-sans)]">
-      <main className="flex flex-col gap-[32px] row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="list-inside list-decimal text-sm/6 text-center sm:text-left font-[family-name:var(--font-geist-mono)]">
-          <li className="mb-2 tracking-[-.01em]">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] px-1 py-0.5 rounded font-[family-name:var(--font-geist-mono)] font-semibold">
-              app/page.tsx
-            </code>
-            .
-          </li>
-          <li className="tracking-[-.01em]">
-            Save and see your changes instantly.
-          </li>
-        </ol>
+    <div className="absolute right-0 top-0 bottom-0 w-10/12 h-full flex">
 
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:w-auto"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 w-full sm:w-auto md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
+      <div className="relative right-0 top-0 bottom-0 w-10/12 p-6 bg-slate-900">
+        <form onSubmit={handleSearch} className=" flex justify-center border-b-2 border-slate-800">
+          <input
+            type="text"
+            id="search"
+            name="search"
+            placeholder="Search songs..."
+            className="p-2 rounded-md text-gray-100 outline-none w-full"
+          />
+        </form>
+        <h1 className="text-white text-3xl font-semibold">Latest Songs</h1>
+        <div className="w-full h-3/12 py-4 flex items-center justify-start gap-4 overflow-x-auto">
+          {latestSongs.map((song, index) => (
+            <div key={song._id || index} className=" h-full aspect-square flex items-center justify-center rounded-lg overflow-hidden relative shadow-lg">
+              <Song song={song} />
+            </div>
+          ))}
         </div>
-      </main>
-      <footer className="row-start-3 flex gap-[24px] flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
+        <h1 className="text-white text-3xl font-semibold">Latest Albums</h1>
+        <div className="w-full h-3/12 py-4 flex items-center justify-start gap-4 overflow-x-auto">
+          {latestAlbums.map((album: CreateAlbumParams, index: number) => (
+            <div key={album._id || index} className=" h-full aspect-square flex items-center justify-center rounded-lg overflow-hidden relative shadow-lg">
+              <Album cover={album.cover} title={album.title} />
+            </div>
+          ))}
+        </div>
+      </div>
     </div>
   );
 }
+
+export default Home
