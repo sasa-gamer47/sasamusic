@@ -2,6 +2,8 @@
 
 import React, { useState, useCallback, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import { toast } from 'sonner';
+import { connectToDatabase } from '@/lib/database';
 import { createSong, updateSong } from '@/lib/actions/song.actions';
 import { uploadFileToCloudinary } from '@/lib/actions/cloudinary.actions';
 import { generateTimedLyricsFromAudio } from '@/lib/actions/audio.actions';
@@ -39,6 +41,7 @@ const CreateSongPage = () => {
 
   const fetchAlbums = async () => {
     try {
+      await connectToDatabase();
       const albumList = await searchAlbums();
       if (albumList) {
         setAlbums(albumList);
