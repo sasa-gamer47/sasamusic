@@ -9,7 +9,7 @@ import Song from '@/components/Song';
 import Album from '@/components/Album';
 
 const SearchResultsPage = () => {
-  const [searchParams] = useState(() => new URLSearchParams(window.location.search));
+  const searchParams = useSearchParams();
   const query = searchParams.get('query') || '';
 
   const [songs, setSongs] = useState<CreateSongParams[]>([]);
