@@ -62,10 +62,12 @@ const CreateSongPage = () => {
     setIsLoading(true);
 
     if (!title || !artist || !audioFile) {
-      setError('Please fill in all required fields (Title, Artist, Audio File).');
+      toast.error('Please fill in all required fields (Title, Artist, Audio File).');
       setIsLoading(false);
       return;
     }
+
+    toast.loading('Creating song...');
 
     try {
       const base64Audio = await convertFileToBase64(audioFile);
@@ -92,10 +94,12 @@ const CreateSongPage = () => {
       };
 
       const createdSong = await createSong(newSong);
+      toast.success('Song created successfully', { duration: 3000 });
 
       // Generate timed lyrics using Gemini
       if (rawLyrics && audioUrl) {
         setIsLoading(true);
+        toast.loading('Generating timed lyrics...', { duration: 2000 });
         try {
           console.log('Starting audio transcription...');
           // const sttOutput = await transcribeAudio({ audioUrl });
@@ -108,20 +112,22 @@ const CreateSongPage = () => {
           // Update the song with the timed lyrics
           const updatedSong = await updateSong(createdSong._id, { lyrics: timedLyrics });
           console.log('Updated song with lyrics:', updatedSong);
+          toast.success('Timed lyrics generated successfully!', { duration: 3000 });
         } catch (error) {
           console.error('Error generating lyrics:', error);
           setError('Failed to generate lyrics. Please check console for details.');
+          toast.error('Failed to generate timed lyrics.', { duration: 3000 });
         } finally {
           setIsLoading(false);
         }
       }
 
-      alert('Song created successfully!');
       router.push(`/song/${createdSong._id}`); // Redirect to the new song's detail page
 
     } catch (err) {
       console.error('Error creating song:', err);
       setError('Failed to create song. Please check console for details.');
+      toast.error('Failed to create song.', { duration: 3000 });
     } finally {
       setIsLoading(false);
     }
