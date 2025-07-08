@@ -120,7 +120,7 @@ export async function getSongById(songId: string) {
 export async function getLatestSongs() {
     try {
         await connectToDatabase()
-        const songs = await Song.find().sort({ createdAt: -1 }).limit(10) // Get the 10 latest songs
+        const songs = await Song.find().sort({ createdAt: -1 }).limit(10)
 
         return JSON.parse(JSON.stringify(songs || []))
     } catch (error) {
