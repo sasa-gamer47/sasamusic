@@ -1,16 +1,17 @@
+// songs/create/page.tsx
 "use client";
 
 import React, { useState, useCallback, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
-import { connectToDatabase } from '@/lib/database';
+// REMOVE THIS LINE: import { connectToDatabase } from '@/lib/database'; // <<<--- DELETE THIS IMPORT
 import { createSong, updateSong } from '@/lib/actions/song.actions';
 import { uploadFileToCloudinary } from '@/lib/actions/cloudinary.actions';
 import { generateTimedLyricsFromAudio } from '@/lib/actions/audio.actions';
 import { CreateSongParams } from '@/types';
 import AlbumDropdown from '@/components/AlbumDropdown';
 import AlbumCreationForm from '@/components/AlbumCreationForm';
-import { searchAlbums } from '@/lib/actions/album.actions';
+import { searchAlbums } from '@/lib/actions/album.actions'; // <<<--- This is your server action
 
 interface Album {
   _id: string;
@@ -39,21 +40,23 @@ const CreateSongPage = () => {
     });
   }, []);
 
-  const fetchAlbums = async () => {
+  // Renamed for clarity, as it fetches for the dropdown
+  const fetchAlbumsForDropdown = async () => {
     try {
-      await connectToDatabase();
-      const albumList = await searchAlbums();
+      // Call the server action. It will handle connectToDatabase() on the server.
+      // Pass an empty object to searchAlbums as you want all for the dropdown initially.
+      const albumList = await searchAlbums({});
       if (albumList) {
         setAlbums(albumList);
       }
-    } catch (error) {
-      console.error('Error fetching albums:', error);
+    } catch (error: any) {
+      console.error('Error fetching albums for dropdown:', error);
       setError('Failed to load albums.');
     }
   };
 
   useEffect(() => {
-    fetchAlbums();
+    fetchAlbumsForDropdown(); // <<<--- Now calls the server action
   }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -93,12 +96,12 @@ const CreateSongPage = () => {
           : [],
       };
 
-      const createdSong = await createSong(newSong);
+      const createdSong = await createSong(newSong); // Assuming createSong is also a server action
       toast.success('Song created successfully', { duration: 3000 });
 
       // Generate timed lyrics using Gemini
       if (rawLyrics && audioUrl) {
-        setIsLoading(true);
+        setIsLoading(true); // Re-set loading for lyric generation phase
         toast.loading('Generating timed lyrics...', { duration: 2000 });
         try {
           console.log('Starting audio transcription...');
@@ -110,7 +113,7 @@ const CreateSongPage = () => {
           console.log('Gemini lyric alignment complete:', timedLyrics);
 
           // Update the song with the timed lyrics
-          const updatedSong = await updateSong(createdSong._id, { lyrics: timedLyrics });
+          const updatedSong = await updateSong(createdSong._id, { lyrics: timedLyrics }); // Assuming updateSong is also a server action
           console.log('Updated song with lyrics:', updatedSong);
           toast.success('Timed lyrics generated successfully!', { duration: 3000 });
         } catch (error) {
@@ -136,8 +139,8 @@ const CreateSongPage = () => {
   const handleAlbumCreate = (newAlbumId: string) => {
     setAlbumId(newAlbumId);
     setIsCreatingAlbum(false);
-    // Refresh the album list
-    fetchAlbums();
+    // Refresh the album list by re-fetching
+    fetchAlbumsForDropdown(); // <<<--- Correctly re-fetches via server action
   };
 
   const handleCancelCreate = () => {
@@ -175,6 +178,7 @@ const CreateSongPage = () => {
         </div>
 
         <div className="mb-4">
+          {/* Ensure AlbumDropdown receives the albums list */}
           <AlbumDropdown onChange={setAlbumId} />
           <button
             type="button"

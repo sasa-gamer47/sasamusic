@@ -1,17 +1,25 @@
+// app/page.tsx
 "use client"
 
 import Image from "next/image";
 import Song from "@/components/Song";
 import Album from "@/components/Album";
-import { getLatestSongs } from "@/lib/actions/song.actions";
-import { getLatestAlbums } from "@/lib/actions/album.actions";
+import { getLatestSongs } from "@/lib/actions/song.actions"; // Correct: Server Action
+import { getLatestAlbums } from "@/lib/actions/album.actions"; // Correct: Server Action
 import { CreateSongParams, CreateAlbumParams } from "@/types";
 import { usePlayer } from "@/context/PlayerContext";
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from "react";
+// REMOVE THIS LINE: import { connectToDatabase } from "@/lib/database"; // <--- DELETE THIS IMPORT
 
 const Home = () => {
   const { addSongToQueue } = usePlayer();
+
+  // REMOVE THIS ENTIRE useEffect BLOCK:
+  // useEffect(() => {
+  //   connectToDatabase();
+  // }, []);
+
   const router = useRouter();
 
   const [latestSongs, setLatestSongs] = useState<CreateSongParams[]>([])
@@ -21,8 +29,8 @@ const Home = () => {
     const fetchLatest = async () => {
       try {
         const [songs, albums] = await Promise.all([
-          getLatestSongs(),
-          getLatestAlbums(),
+          getLatestSongs(), // These are Server Actions, they run on the server
+          getLatestAlbums(), // These are Server Actions, they run on the server
         ]); 
         if (songs && songs.length > 0) {
           setLatestSongs(songs.slice(0, 4)); // Limit to 4 latest songs
@@ -37,7 +45,7 @@ const Home = () => {
       }
     };
     fetchLatest();
-  }, [addSongToQueue]);
+  }, [addSongToQueue]); // addSongToQueue should be stable or memoized if it causes re-renders
 
   const handleSearch = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();

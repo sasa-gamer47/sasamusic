@@ -35,24 +35,18 @@ const SearchResultsClient = () => {
 
       <h2 className="text-white text-2xl font-semibold mt-4">Songs</h2>
       <div className="w-full h-3/12 py-4 flex items-center justify-start gap-4 overflow-x-auto">
-        {songs.map((song, index) => (
-          <>
-          <div key={song._id || index} className=" h-full aspect-square flex items-center justify-center rounded-lg overflow-hidden relative shadow-lg">
-            <Song song={song} />
-          </div>
-          </>
+        {songs.map((song) => (
+          <Song key={song._id} song={song} />
         ))}
       </div>
       
 
       <h2 className="text-white text-2xl font-semibold mt-4">Albums</h2>
       <div className="w-full h-3/12 py-4 flex items-center justify-start gap-4 overflow-x-auto">
-        {albums.map((album, index) => (
-          <>
-          <div key={album._id || index} className=" h-full aspect-square flex items-center justify-center rounded-lg overflow-hidden relative shadow-lg">
+        {albums.map((album) => (
+          <div key={album._id} className=" h-full aspect-square flex items-center justify-center rounded-lg overflow-hidden relative shadow-lg">
             <Album cover={album.cover} title={album.title} />
           </div>
-          </>
         ))}
       </div>
     </div>

@@ -13,6 +13,7 @@ export const connectToDatabase = async () => {
     if(!MONGODB_URI) throw new Error('MONGODB_URI is missing');
 
     // console.log('MONGODB_URI:', MONGODB_URI);
+    // console.log('MONGODB_URI:', MONGODB_URI);
 
     cached.promise = cached.promise || (async () => {
       try {
