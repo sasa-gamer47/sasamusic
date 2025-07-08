@@ -63,8 +63,11 @@ const CreateSongPage = () => {
     e.preventDefault();
     setError('');
     setIsLoading(true);
+  
+    console.log('Form submitted with:', { title, artist, albumId, audioFile, rawLyrics });
 
     if (!title || !artist || !audioFile) {
+      console.log('Validation failed: Missing required fields');
       toast.error('Please fill in all required fields (Title, Artist, Audio File).');
       setIsLoading(false);
       return;
@@ -72,13 +75,18 @@ const CreateSongPage = () => {
 
     toast.loading('Creating song...');
 
+    console.log('Audio file selected:', audioFile);
     try {
+      console.log('Starting audio file conversion to Base64...');
       const base64Audio = await convertFileToBase64(audioFile);
+      console.log('Base64 conversion complete. Uploading audio to Cloudinary...');
       const audioUrl = await uploadFileToCloudinary({
         file: base64Audio,
         resourceType: 'video', // Cloudinary treats audio as 'video' resource type
         folder: 'sasamusic_audio',
       });
+      console.log('Audio uploaded to Cloudinary. URL:', audioUrl);
+      console.log('Cloudinary upload process complete.');
 
       const selectedAlbum = albums.find((album) => album._id === albumId);
 
@@ -97,10 +105,12 @@ const CreateSongPage = () => {
       };
 
       const createdSong = await createSong(newSong); // Assuming createSong is also a server action
+      console.log('Song created in DB:', createdSong);
       toast.success('Song created successfully', { duration: 3000 });
 
       // Generate timed lyrics using Gemini
       if (rawLyrics && audioUrl) {
+        console.log('Raw lyrics provided, starting timed lyric generation...');
         setIsLoading(true); // Re-set loading for lyric generation phase
         toast.loading('Generating timed lyrics...', { duration: 2000 });
         try {
@@ -114,6 +124,7 @@ const CreateSongPage = () => {
 
           // Update the song with the timed lyrics
           const updatedSong = await updateSong(createdSong._id, { lyrics: timedLyrics }); // Assuming updateSong is also a server action
+          console.log('Attempting to update song with timed lyrics...');
           console.log('Updated song with lyrics:', updatedSong);
           toast.success('Timed lyrics generated successfully!', { duration: 3000 });
         } catch (error) {
@@ -121,10 +132,12 @@ const CreateSongPage = () => {
           setError('Failed to generate lyrics. Please check console for details.');
           toast.error('Failed to generate timed lyrics.', { duration: 3000 });
         } finally {
+          console.log('Finished lyric generation process.');
           setIsLoading(false);
         }
       }
 
+      console.log('Redirecting to song detail page...');
       router.push(`/song/${createdSong._id}`); // Redirect to the new song's detail page
 
     } catch (err) {
