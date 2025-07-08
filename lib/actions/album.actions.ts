@@ -17,7 +17,6 @@ interface SearchAlbumsParams {
 export async function searchAlbums({ query, artist, genre }: SearchAlbumsParams = {}) {
     try {
         await connectToDatabase();
-
         const conditions: any = {};
 
         if (query) {
@@ -47,7 +46,6 @@ export async function searchAlbums({ query, artist, genre }: SearchAlbumsParams 
 export async function createAlbum(album: CreateAlbumParams) {
     try {
         await connectToDatabase()
-
         const newAlbum = await Album.create({...album, cover: album.cover || '/imgs/song-cover.png', artist: album.artist || 'Francesco Omma'})
         return JSON.parse(JSON.stringify(newAlbum))
     } catch (error) {
@@ -58,7 +56,6 @@ export async function createAlbum(album: CreateAlbumParams) {
 export async function getAlbumById(albumId: string) {
     try {
         await connectToDatabase()
-
         const album = await Album.findById(albumId)
 
         if (!album) throw new Error('Album not found')
@@ -71,7 +68,6 @@ export async function getAlbumById(albumId: string) {
 export async function getSongsByAlbum(albumId: string) {
     try {
         await connectToDatabase()
-
         const album = await Album.findById(albumId).populate({
             path: 'songs',
             model: Song,
@@ -89,7 +85,6 @@ export async function getSongsByAlbum(albumId: string) {
 export async function getLatestAlbums() {
     try {
         await connectToDatabase()
-
         const albums = await Album.find().sort({ createdAt: -1 }).limit(10) // Get the 10 latest albums
 
         if (!albums || albums.length === 0) throw new Error('No albums found')

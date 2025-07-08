@@ -3,11 +3,12 @@ import Navbar from '@/components/Navbar'
 import Player from '@/components/Player'
 import { Providers } from '@/app/providers'
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: {
   children: React.ReactNode
 }) {
+
   return (
     <html lang="en" suppressHydrationWarning>
       <Providers>

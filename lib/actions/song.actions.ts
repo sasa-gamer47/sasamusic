@@ -14,7 +14,6 @@ import { Schema, Types, model, models } from "mongoose";
 export async function createSong(song: CreateSongParams) {
 try {
     await connectToDatabase()
-
     // Pre-process lyrics to ensure 'text' field exists, preventing validation errors.
     const processedSong = {
         ...song,
@@ -44,7 +43,6 @@ interface SearchSongsParams {
 export async function searchSongs({ query, artist, genre, albumId }: SearchSongsParams) {
     try {
         await connectToDatabase();
-
         const conditions: any = {};
 
         if (query) {
@@ -78,7 +76,6 @@ export async function searchSongs({ query, artist, genre, albumId }: SearchSongs
 export async function updateSong(songId: string, songData: Partial<CreateSongParams>) {
     try {
         await connectToDatabase();
-
         const dataToUpdate = { ...songData };
 
         // If lyrics are being updated, process them to ensure 'text' exists.
@@ -123,7 +120,6 @@ export async function getSongById(songId: string) {
 export async function getLatestSongs() {
     try {
         await connectToDatabase()
-
         const songs = await Song.find().sort({ createdAt: -1 }).limit(10) // Get the 10 latest songs
 
         return JSON.parse(JSON.stringify(songs || []))
