@@ -16,7 +16,7 @@ interface GenerateTimedLyricsParams {
     sttOutput: WordTimestamp[];
 }
 
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!);
+const genAI = new GoogleGenerativeAI(process.env.NEXT_PUBLIC_GEMINI_API_KEY!);
 
 interface GenerateTimedLyricsFromAudioParams {
     rawLyrics: string;
