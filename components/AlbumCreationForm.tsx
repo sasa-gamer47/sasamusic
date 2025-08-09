@@ -2,7 +2,6 @@
 
 import React, { useState, useCallback } from 'react';
 import { createAlbum } from '@/lib/actions/album.actions';
-import { uploadFileToCloudinary } from '@/lib/actions/cloudinary.actions';
 import { CreateAlbumParams } from '@/types';
 
 interface AlbumCreationFormProps {
@@ -17,14 +16,31 @@ const AlbumCreationForm: React.FC<AlbumCreationFormProps> = ({ onCreate, onCance
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
 
-  const convertFileToBase64 = useCallback((file: File): Promise<string> => {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.readAsDataURL(file);
-      reader.onload = () => resolve(reader.result as string);
-      reader.onerror = error => reject(error);
-    });
-  }, []);
+  const uploadDirectToCloudinary = useCallback(
+    async (file: File, resourceType: 'image' | 'video', folder: string): Promise<string> => {
+      const signRes = await fetch('/api/cloudinary/sign', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ folder }),
+      });
+      if (!signRes.ok) throw new Error('Failed to get Cloudinary signature');
+      const { signature, timestamp, apiKey, cloudName } = await signRes.json();
+
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('api_key', apiKey);
+      formData.append('timestamp', String(timestamp));
+      formData.append('signature', signature);
+      formData.append('folder', folder);
+
+      const uploadUrl = `https://api.cloudinary.com/v1_1/${cloudName}/${resourceType}/upload`;
+      const uploadRes = await fetch(uploadUrl, { method: 'POST', body: formData });
+      if (!uploadRes.ok) throw new Error('Cloudinary upload failed');
+      const data = await uploadRes.json();
+      return data.secure_url as string;
+    },
+    []
+  );
 
   const handleSubmit = async (e: React.MouseEvent<HTMLButtonElement>) => {
     e.preventDefault();
@@ -40,12 +56,7 @@ const AlbumCreationForm: React.FC<AlbumCreationFormProps> = ({ onCreate, onCance
     try {
       let coverUrl = '';
       if (coverFile) {
-        const base64Cover = await convertFileToBase64(coverFile);
-        coverUrl = await uploadFileToCloudinary({
-          file: base64Cover,
-          resourceType: 'image',
-          folder: 'sasamusic_covers',
-        });
+        coverUrl = await uploadDirectToCloudinary(coverFile, 'image', 'sasamusic_covers');
       }
 
       const newAlbum: CreateAlbumParams = {

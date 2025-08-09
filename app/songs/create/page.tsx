@@ -6,7 +6,6 @@ import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 // REMOVE THIS LINE: import { connectToDatabase } from '@/lib/database'; // <<<--- DELETE THIS IMPORT
 import { createSong, updateSong } from '@/lib/actions/song.actions';
-import { uploadFileToCloudinary } from '@/lib/actions/cloudinary.actions';
 import { generateTimedLyricsFromAudio } from '@/lib/actions/audio.actions';
 import { CreateSongParams } from '@/types';
 import AlbumDropdown from '@/components/AlbumDropdown';
@@ -31,14 +30,33 @@ const CreateSongPage = () => {
   const [error, setError] = useState('');
   const [albums, setAlbums] = useState<Album[]>([]);
 
-  const convertFileToBase64 = useCallback((file: File): Promise<string> => {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.readAsDataURL(file);
-      reader.onload = () => resolve(reader.result as string);
-      reader.onerror = error => reject(error);
-    });
-  }, []);
+  const uploadDirectToCloudinary = useCallback(
+    async (file: File, resourceType: 'image' | 'video', folder: string): Promise<string> => {
+      // 1) Get a server-generated signature
+      const signRes = await fetch('/api/cloudinary/sign', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ folder }),
+      });
+      if (!signRes.ok) throw new Error('Failed to get Cloudinary signature');
+      const { signature, timestamp, apiKey, cloudName } = await signRes.json();
+
+      // 2) Upload the file directly from the browser
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('api_key', apiKey);
+      formData.append('timestamp', String(timestamp));
+      formData.append('signature', signature);
+      formData.append('folder', folder);
+
+      const uploadUrl = `https://api.cloudinary.com/v1_1/${cloudName}/${resourceType}/upload`;
+      const uploadRes = await fetch(uploadUrl, { method: 'POST', body: formData });
+      if (!uploadRes.ok) throw new Error('Cloudinary upload failed');
+      const data = await uploadRes.json();
+      return data.secure_url as string;
+    },
+    []
+  );
 
   // Renamed for clarity, as it fetches for the dropdown
   const fetchAlbumsForDropdown = async () => {
@@ -77,14 +95,12 @@ const CreateSongPage = () => {
 
     console.log('Audio file selected:', audioFile);
     try {
-      console.log('Starting audio file conversion to Base64...');
-      const base64Audio = await convertFileToBase64(audioFile);
-      console.log('Base64 conversion complete. Uploading audio to Cloudinary...');
-      const audioUrl = await uploadFileToCloudinary({
-        file: base64Audio,
-        resourceType: 'video', // Cloudinary treats audio as 'video' resource type
-        folder: 'sasamusic_audio',
-      });
+      console.log('Uploading audio directly to Cloudinary...');
+      const audioUrl = await uploadDirectToCloudinary(
+        audioFile,
+        'video',
+        'sasamusic_audio'
+      );
       console.log('Audio uploaded to Cloudinary. URL:', audioUrl);
       console.log('Cloudinary upload process complete.');
 
