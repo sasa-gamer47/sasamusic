@@ -11,6 +11,7 @@ import { CreateSongParams } from '@/types';
 import AlbumDropdown from '@/components/AlbumDropdown';
 import AlbumCreationForm from '@/components/AlbumCreationForm';
 import { searchAlbums } from '@/lib/actions/album.actions'; // <<<--- This is your server action
+import withAuth from '@/components/withAuth';
 
 interface Album {
   _id: string;
@@ -182,7 +183,7 @@ const CreateSongPage = () => {
   };
 
   return (
-    <div className="relative right-0 top-0 bottom-0 w-10/12 p-6 bg-slate-900 flex flex-col items-center justify-center">
+    <div className="relative right-0 top-0 bottom-0 w-full sm:w-10/12 p-6 bg-slate-900 flex flex-col items-center justify-center">
       <h1 className="text-white text-3xl font-semibold mb-8">Create New Song</h1>
       <form onSubmit={handleSubmit} className="w-full max-w-md bg-slate-800 p-8 rounded-lg shadow-lg">
         {error && <p className="text-red-500 mb-4 text-center">{error}</p>}
@@ -271,4 +272,4 @@ const CreateSongPage = () => {
   );
 };
 
-export default CreateSongPage;
+export default withAuth(CreateSongPage);

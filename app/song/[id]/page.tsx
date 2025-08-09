@@ -1,15 +1,15 @@
 "use client";
 
 import React from 'react';
-import { useParams } from 'next/navigation';
-import { getSongById, updateSong, searchSongs } from '@/lib/actions/song.actions';
+import { useParams, useRouter } from 'next/navigation';
+import { getSongById, updateSong, searchSongs, deleteSong } from '@/lib/actions/song.actions';
 import { CreateSongParams, LyricLine } from '@/types';
 import { getAlbumById, getSongsByAlbum } from '@/lib/actions/album.actions';
 import Image from 'next/image';
 import { usePlayer } from '@/context/PlayerContext';
 import Link from 'next/link';
-import { generateTimedLyricsFromAudio } from '@/lib/actions/audio.actions';
 import { toast } from 'sonner';
+import SongControls from '@/components/SongControls';
 
 function formatDurationFromLyrics(lyrics?: { timestamp: number; text: string }[]): string {
   if (!lyrics || lyrics.length === 0) return '—';
@@ -23,15 +23,18 @@ function formatDurationFromLyrics(lyrics?: { timestamp: number; text: string }[]
 
 const SongDetailsPage = () => {
   const params = useParams();
+  const router = useRouter();
   const songId = params.id as string;
 
   const [song, setSong] = React.useState<CreateSongParams | null>(null);
   const [album, setAlbum] = React.useState<any>(null);
   const [albumSongs, setAlbumSongs] = React.useState<CreateSongParams[]>([]);
   const [moreByArtist, setMoreByArtist] = React.useState<CreateSongParams[]>([]);
-  const { currentTime, setActiveSong } = usePlayer();
-  const [rawLyricsInput, setRawLyricsInput] = React.useState('');
-  const [isGeneratingLyrics, setIsGeneratingLyrics] = React.useState(false);
+  const { currentTime, setActiveSong, removeSongFromRecentlyPlayed } = usePlayer(); // Added removeSongFromRecentlyPlayed
+  const [isEditing, setIsEditing] = React.useState(false);
+  const [editedTitle, setEditedTitle] = React.useState('');
+  const [editedArtist, setEditedArtist] = React.useState('');
+  const [editedLyrics, setEditedLyrics] = React.useState('');
 
   React.useEffect(() => {
     const fetchSong = async () => {
@@ -40,9 +43,10 @@ const SongDetailsPage = () => {
         const songData = await getSongById(songId);
         if (songData) {
           setSong(songData);
-          setRawLyricsInput(songData.lyrics?.map((l: LyricLine) => l.text).join('\n') || '');
+          setEditedTitle(songData.title);
+          setEditedArtist(songData.artist);
+          setEditedLyrics(songData.lyrics ? songData.lyrics.map((l: LyricLine) => l.text).join('\n') : '');
 
-          // Album info (populated in getSongById) or fetch if just id
           const albumObj = typeof songData.album === 'object' && songData.album !== null ? songData.album : null;
           if (albumObj) {
             setAlbum(albumObj);
@@ -55,7 +59,6 @@ const SongDetailsPage = () => {
             setAlbumSongs(songsInAlbum || []);
           }
 
-          // More by artist
           const more = await searchSongs({ artist: songData.artist });
           setMoreByArtist((more || []).filter((s: CreateSongParams) => s._id !== songData._id).slice(0, 10));
         }
@@ -65,23 +68,6 @@ const SongDetailsPage = () => {
     };
     fetchSong();
   }, [songId]);
-
-  const handleGenerateLyrics = async () => {
-    if (!song || !song.audioUrl) return;
-    if (!rawLyricsInput.trim()) return;
-    setIsGeneratingLyrics(true);
-    try {
-      const timedLyrics = await generateTimedLyricsFromAudio({ rawLyrics: rawLyricsInput, audioUrl: song.audioUrl, audioMimeType: 'audio/mpeg' });
-      const updatedSong = await updateSong(song._id!, { lyrics: timedLyrics });
-      setSong(updatedSong);
-      toast.success('Timed lyrics generated');
-    } catch (error) {
-      console.error('Error generating timed lyrics:', error);
-      toast.error('Failed to generate timed lyrics');
-    } finally {
-      setIsGeneratingLyrics(false);
-    }
-  };
 
   const getHighlightedLyricIndex = (lyrics: LyricLine[], time: number) => {
     let highlightedIndex = -1;
@@ -97,45 +83,93 @@ const SongDetailsPage = () => {
 
   const highlightedLyricIndex = song?.lyrics ? getHighlightedLyricIndex(song.lyrics, currentTime) : -1;
 
-  if (!song) {
-    return <div className="relative right-0 top-0 bottom-0 w-10/12 p-6 bg-slate-900 text-slate-400">Loading…</div>;
-  }
-
-  const albumObj = album;
-  const handlePlayNow = () => {
-    if (albumSongs.length > 0) {
-      const idx = albumSongs.findIndex(s => s._id === song._id);
-      setActiveSong(song, albumSongs, idx === -1 ? 0 : idx);
-    } else {
-      setActiveSong(song);
+  const handleUpdate = async () => {
+    const password = prompt('Enter password to update song');
+    if (password && song) {
+      try {
+        await updateSong(song._id!, { title: editedTitle, artist: editedArtist, lyrics: editedLyrics.split('\n').map(text => ({ timestamp: 0, text: text.trim() })) }, password);
+        toast.success('Song updated');
+        setIsEditing(false);
+        // Refetch song data
+        const songData = await getSongById(songId);
+        setSong(songData);
+      } catch (error) {
+        toast.error('Failed to update song. Incorrect password?');
+      }
     }
   };
 
+  const handleDelete = async () => {
+    const password = prompt('Enter password to delete song');
+    if (password) {
+      try {
+        await deleteSong(songId, password);
+        toast.success('Song deleted');
+        removeSongFromRecentlyPlayed(songId); // Call to remove from recently played
+        router.push('/');
+      } catch (error) {
+        toast.error('Failed to delete song. Incorrect password?');
+      }
+    }
+  };
+
+  if (!song) {
+    return <div className="relative right-0 top-0 bottom-0 w-full p-6 bg-slate-900 text-slate-400">Loading…</div>;
+  }
+
+  const albumObj = album;
+
   return (
-    <div className="relative right-0 top-0 bottom-0 w-10/12 p-6 bg-slate-900">
-      <div className="flex gap-6 items-end">
-        <div className="relative w-40 h-40 sm:w-56 sm:h-56 rounded-md overflow-hidden shadow-lg">
-          <Image src={song.cover} alt={song.title} fill sizes="(max-width: 768px) 160px, 224px" className="object-cover" />
-        </div>
-        <div className="flex-1">
+    <div className="relative right-0 top-0 bottom-0 w-full p-6 bg-slate-900">
+      <div className="relative w-full h-64 sm:h-96 rounded-lg overflow-hidden">
+        <Image src={song.cover} alt={song.title} fill sizes="100vw" className="object-cover" />
+        <div className="absolute inset-0 bg-black bg-opacity-50 flex flex-col justify-end p-6">
           <p className="text-slate-300 text-xs uppercase">Song</p>
-          <h1 className="text-white text-3xl sm:text-5xl font-extrabold leading-tight">{song.title}</h1>
-          <div className="mt-2 text-slate-300 text-sm flex items-center gap-2">
-            <span>{song.artist}</span>
-            {albumObj && (
-              <>
-                <span>•</span>
-                <Link href={`/albums/${albumObj._id}`} className="hover:underline">{albumObj.title}</Link>
-                <span>•</span>
-                <span>{formatDurationFromLyrics(song.lyrics)}</span>
-              </>
-            )}
-          </div>
+          {isEditing ? (
+            <>
+              <input type="text" value={editedTitle} onChange={(e) => setEditedTitle(e.target.value)} className="bg-slate-700 text-white text-3xl sm:text-5xl font-extrabold leading-tight w-full mb-2" />
+              <input type="text" value={editedArtist} onChange={(e) => setEditedArtist(e.target.value)} className="bg-slate-700 text-white text-sm w-full mb-2" />
+              <textarea
+                value={editedLyrics}
+                onChange={(e) => setEditedLyrics(e.target.value)}
+                className="bg-slate-700 text-white text-sm w-full"
+                rows={5}
+              />
+            </>
+          ) : (
+            <>
+              <h1 className="text-white text-3xl sm:text-5xl font-extrabold leading-tight">{song.title}</h1>
+              <div className="mt-2 text-slate-300 text-sm flex items-center gap-2">
+                <span>{song.artist}</span>
+                {albumObj && (
+                  <>
+                    <span>•</span>
+                    <Link href={`/albums/${albumObj._id}`} className="hover:underline">{albumObj.title}</Link>
+                    <span>•</span>
+                    <span>{formatDurationFromLyrics(song.lyrics)}</span>
+                  </>
+                )}
+              </div>
+            </>
+          )}
           <div className="mt-4 flex gap-3">
-            <button onClick={handlePlayNow} className="bg-green-500 hover:bg-green-600 text-black font-bold py-2 px-5 rounded-full">Play</button>
+            <SongControls />
+            <button onClick={() => setIsEditing(!isEditing)} className="bg-gray-500 hover:bg-gray-600 text-white font-bold py-2 px-5 rounded-full">
+              {isEditing ? 'Cancel' : 'Edit'}
+            </button>
           </div>
         </div>
       </div>
+      {isEditing && (
+        <div className="mt-4 flex gap-4">
+          <button onClick={handleUpdate} className="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-5 rounded-full">
+            Update Song
+          </button>
+          <button onClick={handleDelete} className="bg-red-500 hover:bg-red-600 text-white font-bold py-2 px-5 rounded-full">
+            Delete Song
+          </button>
+        </div>
+      )}
 
       <div className="mt-8 grid grid-cols-1 lg:grid-cols-2 gap-6">
         <div>
@@ -210,26 +244,6 @@ const SongDetailsPage = () => {
           </div>
         </div>
       </div>
-
-      {/* Optional: Raw lyrics input and generator for admins or advanced usage */}
-      {process.env.NODE_ENV !== 'production' && (
-        <div className="mt-8">
-          <h3 className="text-white text-lg font-semibold mb-2">Refine Lyrics (dev)</h3>
-          <textarea
-            id="rawLyrics"
-            rows={4}
-            className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-200 leading-tight focus:outline-none focus:shadow-outline bg-slate-800"
-            value={rawLyricsInput}
-            onChange={(e) => setRawLyricsInput(e.target.value)}
-            placeholder="Paste raw lyrics here to generate timed lyrics."
-          />
-          <button
-            onClick={handleGenerateLyrics}
-            className={`bg-purple-600 hover:bg-purple-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline mt-2 ${isGeneratingLyrics ? 'opacity-50 cursor-not-allowed' : ''}`}
-            disabled={isGeneratingLyrics}
-          >{isGeneratingLyrics ? 'Generating…' : 'Generate Timed Lyrics'}</button>
-        </div>
-      )}
     </div>
   );
 };

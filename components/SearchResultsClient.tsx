@@ -30,7 +30,7 @@ const SearchResultsClient = () => {
   }, [query]);
 
   return (
-    <div className="absolute right-0 top-0 bottom-0 w-10/12 p-6 bg-slate-900">
+    <div className="absolute right-0 top-0 bottom-0 w-full sm:w-10/12 p-6 bg-slate-900">
       <h1 className="text-white text-3xl font-semibold">Search Results for "{query}"</h1>
 
       <h2 className="text-white text-2xl font-semibold mt-4">Songs</h2>

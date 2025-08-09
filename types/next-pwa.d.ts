@@ -3,4 +3,9 @@ declare module 'next-pwa' {
   export default withPWA;
 }
 
+declare module 'next-pwa' {
+  const withPWA: any;
+  export default withPWA;
+}
+
 

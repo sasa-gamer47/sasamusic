@@ -124,10 +124,35 @@ const AudioPlayer = () => {
   const progress = duration > 0 ? (currentTime / duration) * 100 : 0;
 
   return (
-    <div className="z-40 w-full h-20 bg-slate-800 flex-shrink-0 flex items-center justify-between border-t border-slate-700 px-6">
+    <div className="fixed bottom-0 left-0 z-50 w-full h-20 bg-slate-800 flex-shrink-0 flex items-center justify-between border-t border-slate-700 px-4">
       <audio ref={audioRef} />
-      <Link href={`/song/${activeSong?._id}`} className="flex items-center gap-4 w-1/3 min-w-[150px]">
-        <div className="relative w-14 h-14 rounded-md overflow-hidden hidden sm:block">
+      {/* Mobile View */}
+      <div className="flex items-center gap-4 w-full sm:hidden">
+        <div className="relative w-14 h-14 rounded-md overflow-hidden">
+          <Image
+            src={activeSong?.cover || songCover}
+            alt="Current Song Cover"
+            fill
+            sizes="100%"
+            className="object-cover"
+          />
+        </div>
+        <div className="flex-1 overflow-hidden">
+          <Link href={activeSong ? `/song/${activeSong._id}` : '#'}>
+            <h3 className="text-white text-md font-semibold truncate">
+              {activeSong?.title || 'No song selected'}
+            </h3>
+            <p className="text-gray-400 text-xs">{activeSong?.artist || '-'}</p>
+          </Link>
+        </div>
+        <button onClick={togglePlayPause} className="text-white text-3xl p-2">
+          {isPlaying ? <FaPause /> : <FaPlay />}
+        </button>
+      </div>
+
+      {/* Desktop View */}
+      <div className="hidden sm:flex items-center gap-4 w-1/3 min-w-[150px]">
+        <div className="relative w-14 h-14 rounded-md overflow-hidden">
           <Image
             src={activeSong?.cover || songCover}
             alt="Current Song Cover"
@@ -137,14 +162,16 @@ const AudioPlayer = () => {
           />
         </div>
         <div>
-          <h3 className="text-white text-md sm:text-lg font-semibold">
-            {activeSong?.title || 'No song selected'}
-          </h3>
-          <p className="text-gray-400 text-xs sm:text-sm">{activeSong?.artist || '-'}</p>
+          <Link href={activeSong ? `/song/${activeSong._id}` : '#'}>
+            <h3 className="text-white text-lg font-semibold">
+              {activeSong?.title || 'No song selected'}
+            </h3>
+            <p className="text-gray-400 text-sm">{activeSong?.artist || '-'}</p>
+          </Link>
         </div>
-      </Link>
+      </div>
 
-      <div className="flex flex-col items-center justify-center gap-2 w-1/3">
+      <div className="hidden sm:flex flex-col items-center justify-center gap-2 w-1/3">
         <div className="flex items-center gap-6 text-white text-xl">
           <button
             title="Shuffle"
@@ -167,7 +194,7 @@ const AudioPlayer = () => {
           </button>
         </div>
         <div className="flex items-center gap-2 w-full">
-          <span className="text-gray-400 text-xs sm:w-10 text-right">{formatTime(currentTime)}</span>
+          <span className="text-gray-400 text-xs w-10 text-right">{formatTime(currentTime)}</span>
           <input
             type="range"
             value={currentTime || 0}
@@ -181,12 +208,12 @@ const AudioPlayer = () => {
               background: `linear-gradient(to right, #1DB954, #1ED760 ${progress}%, #4B5563 ${progress}%)`
             }}
           />
-          <span className="text-gray-400 text-xs sm:w-10">{formatTime(duration)}</span>
-          <FaListUl onClick={toggleQueueModal} className="text-gray-400 text-xl sm:text-lg cursor-pointer hover:text-gray-300 transition-colors" />
+          <span className="text-gray-400 text-xs w-10">{formatTime(duration)}</span>
+          <FaListUl onClick={toggleQueueModal} className="text-gray-400 text-xl cursor-pointer hover:text-gray-300 transition-colors" />
         </div>
       </div>
 
-      <div className="flex items-center gap-2 w-1/3 justify-end">
+      <div className="hidden sm:flex items-center gap-2 w-1/3 justify-end">
         <button onClick={toggleMute} className="text-white text-xl cursor-pointer hover:text-gray-300 transition-colors">
           {volume === 0 ? <FaVolumeMute /> : <FaVolumeUp />}
         </button>

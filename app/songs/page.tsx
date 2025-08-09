@@ -40,18 +40,18 @@ export default function SongsPage() {
   }, []);
 
   return (
-    <div className="relative right-0 top-0 bottom-0 w-10/12 p-6 bg-slate-900">
+    <div className="relative right-0 top-0 bottom-0 w-full sm:w-10/12 p-6 bg-slate-900">
       <h1 className="text-white text-3xl font-semibold mb-4">All Songs</h1>
 
       <div className="overflow-x-auto rounded-lg border border-slate-800">
         <table className="min-w-full divide-y divide-slate-800">
           <thead className="bg-slate-800/60">
             <tr>
-              <th className="px-4 py-3 text-left text-sm font-semibold text-slate-300">#</th>
-              <th className="px-4 py-3 text-left text-sm font-semibold text-slate-300 cursor-pointer" onClick={() => setSortBy('title')}>Title</th>
-              <th className="px-4 py-3 text-left text-sm font-semibold text-slate-300 cursor-pointer" onClick={() => setSortBy('album')}>Album</th>
-              <th className="px-4 py-3 text-left text-sm font-semibold text-slate-300 cursor-pointer" onClick={() => setSortBy('artist')}>Artist</th>
-              <th className="px-4 py-3 text-left text-sm font-semibold text-slate-300">Duration</th>
+              <th className="w-12 px-4 py-3 text-left text-sm font-semibold text-slate-300">#</th>
+              <th className="w-2/5 px-4 py-3 text-left text-sm font-semibold text-slate-300 cursor-pointer" onClick={() => setSortBy('title')}>Title</th>
+              <th className="w-1/5 px-4 py-3 text-left text-sm font-semibold text-slate-300 cursor-pointer" onClick={() => setSortBy('album')}>Album</th>
+              <th className="w-1/5 px-4 py-3 text-left text-sm font-semibold text-slate-300 cursor-pointer" onClick={() => setSortBy('artist')}>Artist</th>
+              <th className="w-1/10 px-4 py-3 text-left text-sm font-semibold text-slate-300">Duration</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-800">
@@ -99,10 +99,9 @@ export default function SongsPage() {
                             className="object-cover"
                           />
                         </div>
-                        <div className="flex items-center gap-3">
+                        <div className="flex flex-col">
                           <div className="text-white text-sm font-semibold">{song.title}</div>
-                          <div className="text-slate-400 text-xs truncate max-w-[220px]">{song.audioUrl}</div>
-                          <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                          <div className="flex items-center gap-2 mt-1">
                             <button
                               title="Add to queue"
                               className="text-xs bg-slate-700 hover:bg-slate-600 text-white px-2 py-1 rounded"
@@ -134,5 +133,3 @@ export default function SongsPage() {
     </div>
   );
 }
-
-

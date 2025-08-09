@@ -14,6 +14,7 @@ interface PlayerContextType {
   addSongToQueue: (song: CreateSongParams) => void;
   insertNextInQueue: (song: CreateSongParams) => void;
   removeFromQueue: (songId: string) => void;
+  removeSongFromRecentlyPlayed: (songId: string) => void;
   recentlyPlayed: CreateSongParams[];
   isPlaying: boolean;
   setIsPlaying: (isPlaying: boolean) => void;
@@ -137,6 +138,12 @@ export const PlayerProvider = ({ children }: { children: ReactNode }) => {
     setSongQueue(prev => prev.filter(s => s._id !== songId));
   }, []);
 
+  const removeSongFromRecentlyPlayed = useCallback((songId: string) => {
+    setRecentlyPlayed(prev => prev.filter(s => s._id !== songId));
+    // Also clear the active song if it's the one being deleted
+    _setActiveSong(prevActiveSong => (prevActiveSong && prevActiveSong._id === songId ? null : prevActiveSong));
+  }, [_setActiveSong]);
+
   const playNext = async () => {
     if (songQueue.length === 0) return;
     if (repeatMode === 'one') {
@@ -208,7 +215,7 @@ export const PlayerProvider = ({ children }: { children: ReactNode }) => {
 
   const value = {
     activeSong, setActiveSong, songQueue, currentSongIndex,
-    playNext, playPrevious, addSongToQueue, insertNextInQueue, removeFromQueue, isPlaying, setIsPlaying,
+    playNext, playPrevious, addSongToQueue, insertNextInQueue, removeFromQueue, removeSongFromRecentlyPlayed, isPlaying, setIsPlaying,
     audioRef, currentTime, setCurrentTime,
     duration, setDuration,
     isShuffling, setIsShuffling, repeatMode, setRepeatMode,

@@ -73,7 +73,10 @@ export async function searchSongs({ query, artist, genre, albumId }: SearchSongs
 }
 
 
-export async function updateSong(songId: string, songData: Partial<CreateSongParams>) {
+export async function updateSong(songId: string, songData: Partial<CreateSongParams>, password?: string) {
+    if (password !== 'BrawlStars3.0') {
+        throw new Error('Unauthorized');
+    }
     try {
         await connectToDatabase();
         const dataToUpdate = { ...songData };
@@ -101,6 +104,21 @@ export async function updateSong(songId: string, songData: Partial<CreateSongPar
     }
 }
 
+export async function deleteSong(songId: string, password?: string) {
+    if (password !== 'BrawlStars3.0') {
+        throw new Error('Unauthorized');
+    }
+    try {
+        await connectToDatabase();
+        const deletedSong = await Song.findByIdAndDelete(songId);
+        if (!deletedSong) throw new Error('Song not found');
+        revalidatePath('/');
+        return JSON.parse(JSON.stringify(deletedSong));
+    } catch (error) {
+        handleError(error);
+    }
+}
+
 export async function getSongById(songId: string) {
     try {
         await connectToDatabase()
@@ -110,6 +128,10 @@ export async function getSongById(songId: string) {
         });
 
         if (!song) throw new Error('Song not found')
+
+        // Add default cover if song.cover is missing or invalid
+        song.cover = song.cover || '/imgs/song-cover.png';
+
         return JSON.parse(JSON.stringify(song))
     } catch (error) {
         handleError(error)

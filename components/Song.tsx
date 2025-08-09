@@ -11,7 +11,7 @@ const Song = ({ song }: { song: CreateSongParams }) => {
 
   return (
     <div
-      className='w-full h-full flex items-center justify-center cursor-pointer group'
+      className='w-full aspect-square flex items-center justify-center cursor-pointer group relative'
       onClick={() => setActiveSong(song)}
     >
         <Image
@@ -19,7 +19,7 @@ const Song = ({ song }: { song: CreateSongParams }) => {
           alt={song.title || "Song Cover"}
           fill
           sizes="(max-width: 768px) 100vw, 33vw"
-          className="rounded-lg group-hover:opacity-80 transition-opacity"
+          className="rounded-lg object-cover group-hover:opacity-80 transition-opacity"
         />
         <p className='absolute bottom-3 w-full text-center text-white text-lg font-semibold'>{song.title}</p>
     </div>

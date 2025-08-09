@@ -44,7 +44,7 @@ export default function AlbumDetailPage() {
   }, [id]);
 
   return (
-    <div className="relative right-0 top-0 bottom-0 w-10/12 p-6 bg-slate-900">
+    <div className="relative right-0 top-0 bottom-0 w-full sm:w-10/12 p-6 bg-slate-900">
       {loading ? (
         <p className="text-slate-400">Loading…</p>
       ) : !album ? (
@@ -127,5 +127,3 @@ export default function AlbumDetailPage() {
     </div>
   );
 }
-
-
