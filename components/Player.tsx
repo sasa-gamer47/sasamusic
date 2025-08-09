@@ -3,7 +3,7 @@
 import React, { useEffect, useState } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
-import { FaPlay, FaPause, FaStepBackward, FaStepForward, FaVolumeUp, FaVolumeMute, FaListUl } from 'react-icons/fa';
+import { FaPlay, FaPause, FaStepBackward, FaStepForward, FaVolumeUp, FaVolumeMute, FaListUl, FaRandom, FaRedo } from 'react-icons/fa';
 import songCover from '@/imgs/song-cover.png';
 import { usePlayer } from '@/context/PlayerContext';
 import SongQueueModal from './SongQueueModal';
@@ -23,14 +23,19 @@ const AudioPlayer = () => {
     audioRef, 
     currentTime, 
     setCurrentTime,
+    duration,
+    setDuration,
     playNext,
     playPrevious,
+    isShuffling,
+    setIsShuffling,
+    repeatMode,
+    setRepeatMode,
     isQueueModalOpen,
     toggleQueueModal
   } = usePlayer();
 
-  const [duration, setDuration] = useState(0);
-  const [volume, setVolume] = useState(1);
+  const { volume, setVolume } = usePlayer();
   const [lastVolume, setLastVolume] = useState(1);
 
   // Effect to handle loading a new song
@@ -141,11 +146,25 @@ const AudioPlayer = () => {
 
       <div className="flex flex-col items-center justify-center gap-2 w-1/3">
         <div className="flex items-center gap-6 text-white text-xl">
+          <button
+            title="Shuffle"
+            onClick={() => setIsShuffling(!isShuffling)}
+            className={`cursor-pointer ${isShuffling ? 'text-[#1ED760]' : ''} hover:text-gray-300 transition-colors`}
+          >
+            <FaRandom />
+          </button>
           <FaStepBackward onClick={playPrevious} className="cursor-pointer hover:text-gray-300 transition-colors" />
           <button onClick={togglePlayPause} className="cursor-pointer text-3xl hover:text-gray-300 transition-colors">
             {isPlaying ? <FaPause /> : <FaPlay />}
           </button>
           <FaStepForward onClick={playNext} className="cursor-pointer hover:text-gray-300 transition-colors" />
+          <button
+            title="Repeat"
+            onClick={() => setRepeatMode(repeatMode === 'off' ? 'all' : repeatMode === 'all' ? 'one' : 'off')}
+            className={`cursor-pointer ${repeatMode !== 'off' ? 'text-[#1ED760]' : ''} hover:text-gray-300 transition-colors`}
+          >
+            <FaRedo />
+          </button>
         </div>
         <div className="flex items-center gap-2 w-full">
           <span className="text-gray-400 text-xs sm:w-10 text-right">{formatTime(currentTime)}</span>

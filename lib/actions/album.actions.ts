@@ -68,15 +68,12 @@ export async function getAlbumById(albumId: string) {
 export async function getSongsByAlbum(albumId: string) {
     try {
         await connectToDatabase()
-        const album = await Album.findById(albumId).populate({
-            path: 'songs',
-            model: Song,
-            select: '_id title artist cover',
-        })
+        // Fetch songs directly to include necessary fields (lyrics for duration, audioUrl, album)
+        const songs = await Song.find({ album: albumId })
+            .sort({ createdAt: -1 })
+            .select('_id title artist cover audioUrl lyrics album createdAt');
 
-        if (!album) throw new Error('Album not found')
-
-        return JSON.parse(JSON.stringify(album.songs))
+        return JSON.parse(JSON.stringify(songs))
     } catch (error) {
         handleError(error)
     }

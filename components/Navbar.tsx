@@ -3,7 +3,7 @@
 import Image from 'next/image';
 import React, { useState } from 'react';
 import Link from 'next/link';
-import { FaHome, FaSearch, FaList, FaMicrophone, FaPlus, FaCog } from 'react-icons/fa';
+import { FaHome, FaSearch, FaList, FaPlus, FaCog } from 'react-icons/fa';
 import SearchModal from './SearchModal';
 
 const Navbar = () => {
@@ -47,9 +47,9 @@ const Navbar = () => {
         </Link>
       </div>
       <div className="text-white text-lg flex items-center justify-center cursor-pointer hover:bg-slate-800 p-2 py-0 transition-colors">
-        <Link href="/artists">
-          <FaMicrophone size={24} className="md:hidden" />
-          <span className="hidden md:inline">Artists</span>
+        <Link href="/songs">
+          <FaList size={24} className="md:hidden" />
+          <span className="hidden md:inline">Songs</span>
         </Link>
       </div>
       <div className="text-white text-lg flex items-center justify-center cursor-pointer hover:bg-slate-800 p-2 py-0 transition-colors">

@@ -74,46 +74,102 @@ interface GenerateTimedLyricsFromAudioParams {
     audioMimeType: string;
 }
 
+// Deterministic alignment of lyrics to STT word timings
+function normalizeText(text: string): string {
+    return text
+        .toLowerCase()
+        .replace(/[^a-z0-9\s]/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim();
+}
+
+function tokenize(text: string): string[] {
+    const normalized = normalizeText(text);
+    return normalized.length ? normalized.split(' ') : [];
+}
+
+function findStartIndexForLine(
+    sttWords: string[],
+    lineWords: string[],
+    startSearchIndex: number
+): number {
+    if (lineWords.length === 0) return -1;
+
+    const tryMatch = (k: number): number => {
+        if (k <= 0) return -1;
+        for (let i = startSearchIndex; i <= sttWords.length - k; i++) {
+            let allMatch = true;
+            for (let j = 0; j < k; j++) {
+                if (sttWords[i + j] !== lineWords[j]) {
+                    allMatch = false;
+                    break;
+                }
+            }
+            if (allMatch) return i;
+        }
+        return -1;
+    };
+
+    // Try matching the first 5, then 4, 3, 2, and 1 words
+    for (let k = Math.min(5, lineWords.length); k >= 1; k--) {
+        const idx = tryMatch(k);
+        if (idx !== -1) return idx;
+    }
+
+    // Fallback: find the earliest occurrence of any of the first 3 words
+    const candidateWords = lineWords.slice(0, Math.min(3, lineWords.length));
+    let earliest = -1;
+    for (let i = startSearchIndex; i < sttWords.length; i++) {
+        if (candidateWords.includes(sttWords[i])) {
+            earliest = i;
+            break;
+        }
+    }
+    return earliest;
+}
+
+function alignLyricsToStt(rawLyrics: string, sttOutput: WordTimestamp[]): LyricLine[] {
+    const lines = rawLyrics
+        .split('\n')
+        .map(line => line.trim())
+        .filter(line => line.length > 0);
+
+    if (!lines.length) return [];
+
+    const sttWords = sttOutput.map(w => normalizeText(w.word)).filter(Boolean);
+    const result: LyricLine[] = [];
+    let searchCursor = 0;
+    let lastTimestamp = 0;
+
+    for (const line of lines) {
+        const lineWords = tokenize(line);
+
+        let timestamp = 0;
+        if (sttWords.length && lineWords.length) {
+            const idx = findStartIndexForLine(sttWords, lineWords, searchCursor);
+            if (idx !== -1) {
+                timestamp = sttOutput[idx].startTime;
+                searchCursor = idx + 1; // move forward to preserve order
+            } else {
+                // Could not find a match; infer a timestamp slightly after last
+                timestamp = Math.max(lastTimestamp + 1.0, lastTimestamp);
+            }
+        } else {
+            // No STT available; monotonically increase timestamps
+            timestamp = lastTimestamp + 1.0;
+        }
+
+        result.push({ timestamp, text: line });
+        lastTimestamp = timestamp;
+    }
+
+    return result;
+}
+
 export async function generateTimedLyrics({ rawLyrics, sttOutput }: GenerateTimedLyricsParams): Promise<LyricLine[]> {
     try {
-        const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
-
-        const prompt = `
-        You are an AI assistant specialized in aligning song lyrics with speech-to-text transcriptions.
-        Your task is to take a block of raw song lyrics and a list of transcribed words with their start and end times,
-        and then output the raw lyrics broken down into lines, with an inferred start timestamp for each line.
-
-        Rules:
-        1. The output must be a JSON array of objects, where each object has 'timestamp' (number, in seconds) and 'text' (string) properties.
-        2. The 'text' for each object must be an exact line from the provided raw lyrics. Do not modify the lyric text.
-        3. The 'timestamp' for each lyric line should be the 'startTime' of the *first word* of that line as found in the 'sttOutput'.
-        4. If a lyric line is not found in the 'sttOutput' or cannot be reliably aligned, infer its timestamp based on the preceding line's end time or a reasonable gap, but prioritize direct alignment. If no reliable timestamp can be inferred, use 0.
-        5. Maintain the original order of the lyric lines.
-        6. Be precise with timestamps, using floating-point numbers.
-
-        Raw Lyrics:
-        ${rawLyrics}
-
-        Speech-to-Text Output (word by word with timestamps):
-        ${JSON.stringify(sttOutput, null, 2)}
-
-        Please provide the output in the following JSON format:
-        [
-            { "timestamp": 0.0, "text": "First lyric line" },
-            { "timestamp": 5.123, "text": "Second lyric line" },
-            // ...
-        ]
-        `;
-
-        const result = await model.generateContent(prompt);
-        const response = await result.response;
-        const text = response.text();
-
-        const parsed = extractJsonFromText<LyricLine[]>(text);
-        if (!parsed) {
-            throw new Error('Failed to parse Gemini response for timed lyrics.');
-        }
-        return parsed;
+        // Prefer deterministic alignment to avoid zero timestamps
+        return alignLyricsToStt(rawLyrics, sttOutput);
 
     } catch (error) {
         handleError(error);
@@ -162,8 +218,8 @@ export async function generateTimedLyricsFromAudio({ rawLyrics, audioUrl, audioM
             sttOutput = [];
         }
 
-        // 4. Use the existing generateTimedLyrics function to align raw lyrics with STT output
-        const timedLyrics = await generateTimedLyrics({ rawLyrics, sttOutput });
+        // 4. Align raw lyrics with STT output deterministically
+        const timedLyrics = alignLyricsToStt(rawLyrics, sttOutput);
 
         return timedLyrics;
     } catch (error) {

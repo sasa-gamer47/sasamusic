@@ -8,12 +8,14 @@ import { getLatestSongs } from "@/lib/actions/song.actions"; // Correct: Server 
 import { getLatestAlbums } from "@/lib/actions/album.actions"; // Correct: Server Action
 import { CreateSongParams, CreateAlbumParams } from "@/types";
 import { usePlayer } from "@/context/PlayerContext";
+import { FaPlay } from 'react-icons/fa';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from "react";
+import { toast } from 'sonner';
 // REMOVE THIS LINE: import { connectToDatabase } from "@/lib/database"; // <--- DELETE THIS IMPORT
 
 const Home = () => {
-  const { addSongToQueue } = usePlayer();
+  const { addSongToQueue, setActiveSong, recentlyPlayed } = usePlayer();
 
   // REMOVE THIS ENTIRE useEffect BLOCK:
   // useEffect(() => {
@@ -24,6 +26,7 @@ const Home = () => {
 
   const [latestSongs, setLatestSongs] = useState<CreateSongParams[]>([])
   const [latestAlbums, setLatestAlbums] = useState<CreateAlbumParams[]>([])
+  const [greeting, setGreeting] = useState('')
 
   useEffect(() => {
     const fetchLatest = async () => {
@@ -36,10 +39,13 @@ const Home = () => {
           setLatestSongs(songs.slice(0, 4)); // Limit to 4 latest songs
           // Automatically add fetched songs to the queue
           songs.forEach((song: CreateSongParams) => addSongToQueue(song));
+          if (songs.length > 0) toast.success('Latest songs loaded');
         }
         if (albums && albums.length > 0) {
           setLatestAlbums(albums.slice(0, 4)); // Limit to 4 latest albums
         }
+        const hour = new Date().getHours();
+        setGreeting(hour < 12 ? 'Good morning' : hour < 18 ? 'Good afternoon' : 'Good evening');
       } catch (error) {
         console.error('Error fetching latest data: ', error);
       }
@@ -61,16 +67,47 @@ const Home = () => {
     <div className="absolute right-0 top-20 z-20 sm:top-0 bottom-0 w-full sm:w-10/12 h-full flex">
 
       <div className="relative right-0 top-0 bottom-0 w-10/12 p-6 bg-slate-900">
-        <form onSubmit={handleSearch} className=" flex justify-center border-b-2 border-slate-800">
+        <form onSubmit={handleSearch} className="flex justify-center border-b-2 border-slate-800 sticky top-0 z-10 bg-slate-900/80 backdrop-blur supports-[backdrop-filter]:bg-slate-900/60">
           <input
             type="text"
             id="search"
             name="search"
             placeholder="Search songs..."
-            className="p-2 rounded-md text-gray-100 outline-none w-full"
+            className="p-3 rounded-md text-gray-100 outline-none w-full"
           />
         </form>
-        <h1 className="text-white text-3xl font-semibold">Latest Songs</h1>
+        <div className="mt-6 flex items-center justify-between">
+          <h1 className="text-white text-3xl font-semibold">{greeting}</h1>
+          {latestSongs[0] && (
+            <button
+              className="bg-green-500 hover:bg-green-600 text-black font-bold py-2 px-4 rounded-full flex items-center gap-2"
+              onClick={() => setActiveSong(latestSongs[0], latestSongs, 0)}
+            >
+              <FaPlay /> Play
+            </button>
+          )}
+        </div>
+
+        {recentlyPlayed.length > 0 && (
+          <>
+            <h2 className="text-white text-2xl font-semibold mt-6">Recently played</h2>
+            <div className="w-full py-4 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+              {recentlyPlayed.slice(0, 8).map((song, index) => (
+                <div key={song._id || index} className="bg-slate-800/60 rounded-lg p-3 flex items-center gap-3 hover:bg-slate-800 cursor-pointer" onClick={() => setActiveSong(song)}>
+                  <div className="relative w-12 h-12 rounded overflow-hidden">
+                    <Image src={song.cover} alt={song.title} fill sizes="48px" className="object-cover" />
+                  </div>
+                  <div className="truncate">
+                    <div className="text-white text-sm font-semibold truncate">{song.title}</div>
+                    <div className="text-slate-400 text-xs truncate">{song.artist}</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </>
+        )}
+
+        <h2 className="text-white text-2xl font-semibold mt-6">Latest Songs</h2>
         <div className="w-full h-3/12 py-4 flex items-center justify-start gap-4 overflow-x-auto">
           {latestSongs.map((song, index) => (
             <div key={song._id || index} className=" h-full aspect-square flex items-center justify-center rounded-lg overflow-hidden relative shadow-lg">
@@ -78,7 +115,7 @@ const Home = () => {
             </div>
           ))}
         </div>
-        <h1 className="text-white text-3xl font-semibold">Latest Albums</h1>
+        <h2 className="text-white text-2xl font-semibold">Latest Albums</h2>
         <div className="w-full h-3/12 py-4 flex items-center justify-start gap-4 overflow-x-auto">
           {latestAlbums.map((album: CreateAlbumParams, index: number) => (
             <div key={album._id || index} className=" h-full aspect-square flex items-center justify-center rounded-lg overflow-hidden relative shadow-lg">

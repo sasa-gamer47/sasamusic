@@ -127,3 +127,16 @@ export async function getLatestSongs() {
         handleError(error)
     }
 }
+
+export async function getAllSongsWithAlbum() {
+    try {
+        await connectToDatabase();
+        const songs = await Song.find().sort({ createdAt: -1 }).populate({
+            path: 'album',
+            select: '_id title cover',
+        });
+        return JSON.parse(JSON.stringify(songs || []));
+    } catch (error) {
+        handleError(error);
+    }
+}

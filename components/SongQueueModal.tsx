@@ -1,7 +1,7 @@
 "use client"
 
 import React from 'react';
-import { FaTimes } from 'react-icons/fa';
+import { FaTimes, FaTrash, FaArrowUp, FaArrowDown } from 'react-icons/fa';
 import { usePlayer } from '@/context/PlayerContext';
 import Image from 'next/image';
 import songCover from '@/imgs/song-cover.png';
@@ -12,7 +12,7 @@ interface SongQueueModalProps {
 }
 
 const SongQueueModal: React.FC<SongQueueModalProps> = ({ isOpen, onClose }) => {
-  const { songQueue, setActiveSong, activeSong, currentSongIndex } = usePlayer();
+  const { songQueue, setActiveSong, activeSong, currentSongIndex, removeFromQueue, insertNextInQueue } = usePlayer();
 
   if (!isOpen) return null;
 
@@ -56,6 +56,22 @@ const SongQueueModal: React.FC<SongQueueModalProps> = ({ isOpen, onClose }) => {
                 {activeSong?._id === song._id && currentSongIndex === index && (
                   <span className="text-green-400 text-sm">Playing</span>
                 )}
+                <div className="flex items-center gap-2 ml-2">
+                  <button
+                    title="Play next"
+                    onClick={(e) => { e.stopPropagation(); insertNextInQueue(song); }}
+                    className="text-slate-300 hover:text-white"
+                  >
+                    <FaArrowUp />
+                  </button>
+                  <button
+                    title="Remove from queue"
+                    onClick={(e) => { e.stopPropagation(); removeFromQueue(song._id!); }}
+                    className="text-red-400 hover:text-red-500"
+                  >
+                    <FaTrash />
+                  </button>
+                </div>
               </div>
             ))
           )}

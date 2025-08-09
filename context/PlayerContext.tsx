@@ -2,6 +2,7 @@
 
 import React, { createContext, useContext, useRef, useState, useCallback, ReactNode } from 'react';
 import { CreateSongParams } from '@/types';
+import { getLatestSongs } from '@/lib/actions/song.actions';
 
 interface PlayerContextType {
   activeSong: CreateSongParams | null;
@@ -11,11 +12,22 @@ interface PlayerContextType {
   playNext: () => void;
   playPrevious: () => void;
   addSongToQueue: (song: CreateSongParams) => void;
+  insertNextInQueue: (song: CreateSongParams) => void;
+  removeFromQueue: (songId: string) => void;
+  recentlyPlayed: CreateSongParams[];
   isPlaying: boolean;
   setIsPlaying: (isPlaying: boolean) => void;
   audioRef: React.RefObject<HTMLAudioElement | null>;
   currentTime: number;
   setCurrentTime: (time: number) => void;
+  duration: number;
+  setDuration: (d: number) => void;
+  isShuffling: boolean;
+  setIsShuffling: (v: boolean) => void;
+  repeatMode: 'off' | 'one' | 'all';
+  setRepeatMode: (m: 'off' | 'one' | 'all') => void;
+  volume: number;
+  setVolume: (v: number) => void;
   isQueueModalOpen: boolean;
   toggleQueueModal: () => void;
 }
@@ -30,7 +42,12 @@ export const PlayerProvider = ({ children }: { children: ReactNode }) => {
   const [currentSongIndex, setCurrentSongIndex] = useState<number>(-1);
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
+  const [duration, setDuration] = useState(0);
   const [isQueueModalOpen, setIsQueueModalOpen] = useState(false);
+  const [isShuffling, setIsShuffling] = useState(false);
+  const [repeatMode, setRepeatMode] = useState<'off' | 'one' | 'all'>('off');
+  const [volume, setVolume] = useState(1);
+  const [recentlyPlayed, setRecentlyPlayed] = useState<CreateSongParams[]>([]);
   const audioRef = useRef<HTMLAudioElement>(null);
 
   // Load state from localStorage on initial mount
@@ -38,23 +55,32 @@ export const PlayerProvider = ({ children }: { children: ReactNode }) => {
     try {
       const savedState = localStorage.getItem(LOCAL_STORAGE_KEY);
       if (savedState) {
-        const { activeSong: savedActiveSong, currentTime: savedCurrentTime, isPlaying: savedIsPlaying } = JSON.parse(savedState);
+        const { activeSong: savedActiveSong, isPlaying: savedIsPlaying, duration: savedDuration, isShuffling: savedShuffle, repeatMode: savedRepeat, volume: savedVolume, recentlyPlayed: savedRecent } = JSON.parse(savedState);
         _setActiveSong(savedActiveSong);
-        setCurrentTime(savedCurrentTime);
         setIsPlaying(savedIsPlaying);
+        if (typeof savedDuration === 'number') setDuration(savedDuration);
+        if (typeof savedShuffle === 'boolean') setIsShuffling(savedShuffle);
+        if (savedRepeat === 'off' || savedRepeat === 'one' || savedRepeat === 'all') setRepeatMode(savedRepeat);
+        if (typeof savedVolume === 'number') setVolume(Math.max(0, Math.min(1, savedVolume)));
+        if (Array.isArray(savedRecent)) setRecentlyPlayed(savedRecent);
       }
     } catch (error) {
       console.error("Failed to load state from localStorage", error);
     }
   }, []);
 
-  // Save state to localStorage whenever activeSong, currentTime, or isPlaying changes
+  // Save state to localStorage whenever key fields change
   React.useEffect(() => {
     try {
       if (activeSong) {
         localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify({
           activeSong,
           isPlaying,
+          duration,
+          isShuffling,
+          repeatMode,
+          volume,
+          recentlyPlayed,
         }));
       } else {
         localStorage.removeItem(LOCAL_STORAGE_KEY); // Clear if no active song
@@ -62,10 +88,16 @@ export const PlayerProvider = ({ children }: { children: ReactNode }) => {
     } catch (error) {
       console.error("Failed to save state to localStorage", error);
     }
-  }, [activeSong, isPlaying]);
+  }, [activeSong, isPlaying, duration, isShuffling, repeatMode, volume, recentlyPlayed]);
 
   const setActiveSong = (song: CreateSongParams, songs?: CreateSongParams[], index?: number) => {
     _setActiveSong(song);
+    setIsPlaying(true);
+    // Update recently played: move to front, unique, cap at 20
+    setRecentlyPlayed(prev => {
+      const without = prev.filter(s => s._id !== song._id);
+      return [song, ...without].slice(0, 20);
+    });
     if (songs && index !== undefined) {
       setSongQueue(songs);
       setCurrentSongIndex(index);
@@ -91,25 +123,83 @@ export const PlayerProvider = ({ children }: { children: ReactNode }) => {
     }
   }, [songQueue]);
 
-  const playNext = () => {
+  const insertNextInQueue = useCallback((song: CreateSongParams) => {
+    setSongQueue(prev => {
+      const existsIndex = prev.findIndex(s => s._id === song._id);
+      const base = existsIndex !== -1 ? prev.filter(s => s._id !== song._id) : [...prev];
+      const insertAt = currentSongIndex >= 0 ? currentSongIndex + 1 : base.length;
+      base.splice(insertAt, 0, song);
+      return base;
+    });
+  }, [currentSongIndex]);
+
+  const removeFromQueue = useCallback((songId: string) => {
+    setSongQueue(prev => prev.filter(s => s._id !== songId));
+  }, []);
+
+  const playNext = async () => {
     if (songQueue.length === 0) return;
-    const nextIndex = (currentSongIndex + 1) % songQueue.length;
+    if (repeatMode === 'one') {
+      if (audioRef.current) {
+        audioRef.current.currentTime = 0;
+        audioRef.current.play().catch(() => {});
+      }
+      setIsPlaying(true);
+      return;
+    }
+
+    let nextIndex = currentSongIndex;
+    if (isShuffling && songQueue.length > 1) {
+      let rand = Math.floor(Math.random() * songQueue.length);
+      if (rand === currentSongIndex) rand = (rand + 1) % songQueue.length;
+      nextIndex = rand;
+    } else if (currentSongIndex + 1 < songQueue.length) {
+      nextIndex = currentSongIndex + 1;
+    } else if (repeatMode === 'all') {
+      nextIndex = 0;
+    } else {
+      // End of queue without repeat-all: pick a random song from latest and continue
+      try {
+        const latest = await getLatestSongs();
+        if (latest && latest.length > 0) {
+          const rand = Math.floor(Math.random() * latest.length);
+          _setActiveSong(latest[rand]);
+          setSongQueue(latest);
+          setCurrentSongIndex(rand);
+          setIsPlaying(true);
+        } else {
+          setIsPlaying(false);
+        }
+      } catch {
+        setIsPlaying(false);
+      }
+      return;
+    }
     _setActiveSong(songQueue[nextIndex]);
     setCurrentSongIndex(nextIndex);
   };
 
   const playPrevious = () => {
-    if (audioRef.current && currentTime > 3) { // If song has played for more than 3 seconds, restart it
+    if (audioRef.current && currentTime > 3) {
       audioRef.current.currentTime = 0;
       setCurrentTime(0);
       audioRef.current.play();
       setIsPlaying(true);
-    } else { // Otherwise, go to the previous song
-      if (songQueue.length === 0) return;
-      const prevIndex = (currentSongIndex - 1 + songQueue.length) % songQueue.length;
-      _setActiveSong(songQueue[prevIndex]);
-      setCurrentSongIndex(prevIndex);
+      return;
     }
+    if (songQueue.length === 0) return;
+    if (repeatMode === 'one') {
+      if (audioRef.current) {
+        audioRef.current.currentTime = 0;
+        audioRef.current.play().catch(() => {});
+      }
+      setIsPlaying(true);
+      return;
+    }
+    let prevIndex = currentSongIndex - 1;
+    if (prevIndex < 0) prevIndex = repeatMode === 'all' ? songQueue.length - 1 : 0;
+    _setActiveSong(songQueue[prevIndex]);
+    setCurrentSongIndex(prevIndex);
   };
 
   const toggleQueueModal = () => {
@@ -118,8 +208,12 @@ export const PlayerProvider = ({ children }: { children: ReactNode }) => {
 
   const value = {
     activeSong, setActiveSong, songQueue, currentSongIndex,
-    playNext, playPrevious, addSongToQueue, isPlaying, setIsPlaying,
+    playNext, playPrevious, addSongToQueue, insertNextInQueue, removeFromQueue, isPlaying, setIsPlaying,
     audioRef, currentTime, setCurrentTime,
+    duration, setDuration,
+    isShuffling, setIsShuffling, repeatMode, setRepeatMode,
+    volume, setVolume,
+    recentlyPlayed,
     isQueueModalOpen, toggleQueueModal,
   };
 
