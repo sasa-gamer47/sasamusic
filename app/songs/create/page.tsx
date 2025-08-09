@@ -27,6 +27,7 @@ const CreateSongPage = () => {
   const [audioFile, setAudioFile] = useState<File | null>(null);
   const [rawLyrics, setRawLyrics] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [isSyncingLyrics, setIsSyncingLyrics] = useState(false);
   const [error, setError] = useState('');
   const [albums, setAlbums] = useState<Album[]>([]);
 
@@ -79,8 +80,10 @@ const CreateSongPage = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isLoading || isSyncingLyrics) return; // prevent double submit during loading/syncing
     setError('');
     setIsLoading(true);
+    setIsSyncingLyrics(false);
   
     console.log('Form submitted with:', { title, artist, albumId, audioFile, rawLyrics });
 
@@ -91,7 +94,7 @@ const CreateSongPage = () => {
       return;
     }
 
-    toast.loading('Creating song...');
+    toast.loading('Uploading audio...', { id: 'song-create' });
 
     console.log('Audio file selected:', audioFile);
     try {
@@ -101,6 +104,7 @@ const CreateSongPage = () => {
         'video',
         'sasamusic_audio'
       );
+      toast.loading('Saving song...', { id: 'song-create' });
       console.log('Audio uploaded to Cloudinary. URL:', audioUrl);
       console.log('Cloudinary upload process complete.');
 
@@ -122,13 +126,14 @@ const CreateSongPage = () => {
 
       const createdSong = await createSong(newSong); // Assuming createSong is also a server action
       console.log('Song created in DB:', createdSong);
-      toast.success('Song created successfully', { duration: 3000 });
+      toast.success('Song created successfully', { id: 'song-create', duration: 1500 });
 
       // Generate timed lyrics using Gemini
       if (rawLyrics && audioUrl) {
         console.log('Raw lyrics provided, starting timed lyric generation...');
-        setIsLoading(true); // Re-set loading for lyric generation phase
-        toast.loading('Generating timed lyrics...', { duration: 2000 });
+        setIsLoading(false);
+        setIsSyncingLyrics(true);
+        toast.loading('Syncing lyrics with audio...', { id: 'lyrics-sync' });
         try {
           console.log('Starting audio transcription...');
           // const sttOutput = await transcribeAudio({ audioUrl });
@@ -142,14 +147,14 @@ const CreateSongPage = () => {
           const updatedSong = await updateSong(createdSong._id, { lyrics: timedLyrics }); // Assuming updateSong is also a server action
           console.log('Attempting to update song with timed lyrics...');
           console.log('Updated song with lyrics:', updatedSong);
-          toast.success('Timed lyrics generated successfully!', { duration: 3000 });
+          toast.success('Timed lyrics generated successfully!', { id: 'lyrics-sync', duration: 1500 });
         } catch (error) {
           console.error('Error generating lyrics:', error);
           setError('Failed to generate lyrics. Please check console for details.');
-          toast.error('Failed to generate timed lyrics.', { duration: 3000 });
+          toast.error('Failed to generate timed lyrics.', { id: 'lyrics-sync', duration: 2500 });
         } finally {
           console.log('Finished lyric generation process.');
-          setIsLoading(false);
+          setIsSyncingLyrics(false);
         }
       }
 
@@ -159,7 +164,7 @@ const CreateSongPage = () => {
     } catch (err) {
       console.error('Error creating song:', err);
       setError('Failed to create song. Please check console for details.');
-      toast.error('Failed to create song.', { duration: 3000 });
+      toast.error('Failed to create song.', { id: 'song-create', duration: 3000 });
     } finally {
       setIsLoading(false);
     }
@@ -251,12 +256,14 @@ const CreateSongPage = () => {
         <div className="flex items-center justify-between">
           <button
             type="submit"
-            className={`bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline ${
-              isLoading ? 'opacity-50 cursor-not-allowed' : ''
+            className={`text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline transition-colors ${
+              isLoading || isSyncingLyrics
+                ? 'bg-blue-400/60 cursor-not-allowed'
+                : 'bg-blue-600 hover:bg-blue-700'
             }`}
-            disabled={isLoading}
+            disabled={isLoading || isSyncingLyrics}
           >
-            {isLoading ? 'Creating Song...' : 'Create Song'}
+            {isSyncingLyrics ? 'Syncing lyrics with audio...' : isLoading ? 'Creating Song...' : 'Create Song'}
           </button>
         </div>
       </form>

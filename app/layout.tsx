@@ -2,6 +2,7 @@ import './globals.css'
 import Navbar from '@/components/Navbar'
 import Player from '@/components/Player'
 import { Providers } from '@/app/providers'
+import { Toaster } from '@/components/ui/sonner'
 
 export default async function RootLayout({
   children,
@@ -21,6 +22,7 @@ export default async function RootLayout({
           </div>
           <Player />
         </Providers>
+        <Toaster position="top-center" richColors />
       </body>
     </html>
   )
