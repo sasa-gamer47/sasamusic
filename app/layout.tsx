@@ -11,17 +11,17 @@ export default async function RootLayout({
 
   return (
     <html lang="en" suppressHydrationWarning>
-      <Providers>
-        <body className='w-screen h-screen bg-slate-900 flex flex-col'>
+      <body className='w-screen h-screen bg-slate-900 flex flex-col'>
+        <Providers>
           <div className='flex flex-1 overflow-hidden'>
             <Navbar />
-            <main className='flex-1 overflow-y-auto'>
+            <main className='flex-1 overflow-y-auto pt-16 sm:pt-0 sm:ml-[16.666667%]'>
               {children}
             </main>
           </div>
           <Player />
-        </body>
-      </Providers>
+        </Providers>
+      </body>
     </html>
   )
 }

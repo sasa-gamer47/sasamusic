@@ -5,6 +5,51 @@ import { handleError } from '@/lib/utils';
 import { Readable } from 'stream';
 import { LyricLine } from '@/types';
 
+function tryParseJson<T>(raw: string): T | null {
+    try {
+        return JSON.parse(raw) as T;
+    } catch {
+        return null;
+    }
+}
+
+function extractJsonFromText<T>(text: string): T | null {
+    // 1) Try direct JSON
+    const direct = tryParseJson<T>(text);
+    if (direct !== null) return direct;
+
+    // 2) Try fenced code blocks with or without language
+    const fencePatterns = [
+        /```json\s*([\s\S]*?)\s*```/i,
+        /```\s*([\s\S]*?)\s*```/,
+    ];
+    for (const pattern of fencePatterns) {
+        const match = text.match(pattern);
+        if (match && match[1]) {
+            const parsed = tryParseJson<T>(match[1]);
+            if (parsed !== null) return parsed;
+        }
+    }
+
+    // 3) Try extracting the largest array or object slice
+    const arrayStart = text.indexOf('[');
+    const arrayEnd = text.lastIndexOf(']');
+    if (arrayStart !== -1 && arrayEnd > arrayStart) {
+        const candidate = text.slice(arrayStart, arrayEnd + 1);
+        const parsed = tryParseJson<T>(candidate);
+        if (parsed !== null) return parsed;
+    }
+    const objStart = text.indexOf('{');
+    const objEnd = text.lastIndexOf('}');
+    if (objStart !== -1 && objEnd > objStart) {
+        const candidate = text.slice(objStart, objEnd + 1);
+        const parsed = tryParseJson<T>(candidate);
+        if (parsed !== null) return parsed;
+    }
+
+    return null;
+}
+
 interface WordTimestamp {
     word: string;
     startTime: number;
@@ -16,7 +61,12 @@ interface GenerateTimedLyricsParams {
     sttOutput: WordTimestamp[];
 }
 
-const genAI = new GoogleGenerativeAI(process.env.NEXT_PUBLIC_GEMINI_API_KEY!);
+// Use server-side env var for Gemini API key and fail fast if missing
+const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
+if (!GEMINI_API_KEY) {
+    throw new Error('GEMINI_API_KEY is not set. Add it to your environment (e.g., .env.local) to use Gemini features.');
+}
+const genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
 
 interface GenerateTimedLyricsFromAudioParams {
     rawLyrics: string;
@@ -59,16 +109,11 @@ export async function generateTimedLyrics({ rawLyrics, sttOutput }: GenerateTime
         const response = await result.response;
         const text = response.text();
 
-        const jsonMatch = text.match(/```json\n([\s\S]*?)\n```/);
-        let parsedLyrics: LyricLine[];
-
-        if (jsonMatch && jsonMatch[1]) {
-            parsedLyrics = JSON.parse(jsonMatch[1]);
-        } else {
-            parsedLyrics = JSON.parse(text);
+        const parsed = extractJsonFromText<LyricLine[]>(text);
+        if (!parsed) {
+            throw new Error('Failed to parse Gemini response for timed lyrics.');
         }
-        
-        return parsedLyrics;
+        return parsed;
 
     } catch (error) {
         handleError(error);
@@ -112,18 +157,9 @@ export async function generateTimedLyricsFromAudio({ rawLyrics, audioUrl, audioM
         const response = await result.response;
         const text = response.text();
 
-        let sttOutput: WordTimestamp[];
-        const jsonMatch = text.match(/```json\n([\s\S]*?)\n```/);
-
-        if (jsonMatch && jsonMatch[1]) {
-            sttOutput = JSON.parse(jsonMatch[1]);
-        } else {
-            try {
-                sttOutput = JSON.parse(text);
-            } catch (parseError) {
-                console.error("Failed to parse STT output directly:", parseError);
-                sttOutput = [];
-            }
+        let sttOutput = extractJsonFromText<WordTimestamp[]>(text) ?? [];
+        if (!Array.isArray(sttOutput)) {
+            sttOutput = [];
         }
 
         // 4. Use the existing generateTimedLyrics function to align raw lyrics with STT output
